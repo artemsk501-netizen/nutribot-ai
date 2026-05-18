@@ -1,4 +1,3 @@
-import foodsRu from "../data/foods-ru.json" with { type: "json" };
 import { config } from "../config.js";
 import type { FoodAnalysisResult, Macros } from "../types/index.js";
 
@@ -19,7 +18,43 @@ interface LocalFood {
   servingG: number;
 }
 
-const localFoods = foodsRu as LocalFood[];
+const localFoods: LocalFood[] = [
+  {
+    name: "Борщ",
+    aliases: ["борщ", "borscht"],
+    calories: 57,
+    macros: { proteinG: 3.8, fatG: 2.9, carbsG: 4.3 },
+    servingG: 100,
+  },
+  {
+    name: "Овсяная каша",
+    aliases: ["овсянка", "каша овсяная", "oatmeal", "porridge"],
+    calories: 370,
+    macros: { proteinG: 13.2, fatG: 6.5, carbsG: 67.7 },
+    servingG: 100,
+  },
+  {
+    name: "Куриная грудка",
+    aliases: ["курица", "куриное филе", "chicken breast", "chicken"],
+    calories: 165,
+    macros: { proteinG: 31, fatG: 3.6, carbsG: 0 },
+    servingG: 100,
+  },
+  {
+    name: "Гречка вареная",
+    aliases: ["гречка", "гречневая каша", "buckwheat"],
+    calories: 110,
+    macros: { proteinG: 3.6, fatG: 1.1, carbsG: 21.3 },
+    servingG: 100,
+  },
+  {
+    name: "Банан",
+    aliases: ["банан", "banana"],
+    calories: 89,
+    macros: { proteinG: 1.1, fatG: 0.3, carbsG: 22.8 },
+    servingG: 100,
+  },
+];
 
 export function searchLocalFood(query: string): UsdaMatch | null {
   const q = normalize(query);
