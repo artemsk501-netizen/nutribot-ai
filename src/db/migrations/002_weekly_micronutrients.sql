@@ -1,0 +1,6 @@
+ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS weekly_reports_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+  ADD COLUMN IF NOT EXISTS last_weekly_report_at TIMESTAMPTZ;
+
+ALTER TABLE meals
+  ADD COLUMN IF NOT EXISTS micronutrients JSONB;

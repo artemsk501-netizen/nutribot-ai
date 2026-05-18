@@ -1,0 +1,13 @@
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    env_file: .env
+    environment:
+      SQLITE_PATH: /app/data/nutribot.db
+    volumes:
+      - nutribot_sqlite:/app/data
+
+volumes:
+  nutribot_sqlite:

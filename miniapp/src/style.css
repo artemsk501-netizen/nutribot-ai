@@ -1,0 +1,382 @@
+:root {
+  --tg-bg: #ffffff;
+  --tg-text: #1a1a1a;
+  --tg-secondary: #f4f4f5;
+  --tg-button: #3390ec;
+  --tg-button-text: #ffffff;
+  --radius: 12px;
+  --shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: var(--tg-bg);
+  color: var(--tg-text);
+  min-height: 100vh;
+  padding: 16px;
+  padding-bottom: 80px;
+}
+
+body[data-theme="dark"] {
+  --tg-bg: #1c1c1e;
+  --tg-text: #f5f5f7;
+  --tg-secondary: #2c2c2e;
+}
+
+.header {
+  margin-bottom: 20px;
+}
+
+.header h1 {
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+.subtitle {
+  color: color-mix(in srgb, var(--tg-text) 60%, transparent);
+  font-size: 0.9rem;
+  margin-top: 4px;
+}
+
+.card {
+  background: var(--tg-secondary);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 12px;
+  box-shadow: var(--shadow);
+}
+
+.greeting {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.badge {
+  font-size: 0.75rem;
+  background: var(--tg-button);
+  color: var(--tg-button-text);
+  padding: 4px 10px;
+  border-radius: 20px;
+}
+
+.progress-label {
+  font-size: 0.85rem;
+  opacity: 0.8;
+  margin-bottom: 8px;
+}
+
+.progress-bar {
+  font-family: ui-monospace, monospace;
+  letter-spacing: 1px;
+  margin-bottom: 8px;
+}
+
+.progress-numbers {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.progress-numbers strong {
+  font-size: 1.5rem;
+}
+
+.remaining {
+  font-size: 0.85rem;
+  opacity: 0.7;
+}
+
+.macros h2,
+.meals h2 {
+  font-size: 0.95rem;
+  margin-bottom: 12px;
+}
+
+.macro-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  text-align: center;
+}
+
+.macro-grid span {
+  display: block;
+  font-size: 0.75rem;
+  opacity: 0.7;
+}
+
+.macro-grid strong {
+  font-size: 1.1rem;
+}
+
+.meals ul {
+  list-style: none;
+}
+
+.meal-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--tg-text) 10%, transparent);
+}
+
+.meal-item:last-child {
+  border-bottom: none;
+}
+
+.meal-kcal {
+  font-weight: 600;
+  opacity: 0.85;
+}
+
+.empty,
+.loading,
+.error {
+  text-align: center;
+  opacity: 0.75;
+  padding: 24px;
+}
+
+.error {
+  color: #e53935;
+}
+
+.tabs {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.tab {
+  flex: 1;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--tg-text) 8%, transparent);
+  color: var(--tg-text);
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.tab.active {
+  background: var(--tg-button);
+  color: var(--tg-button-text);
+}
+
+.week-summary {
+  margin-top: 8px;
+  opacity: 0.9;
+}
+
+.chart-card .chart {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 6px;
+  height: 140px;
+  padding-top: 8px;
+}
+
+.chart-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+  justify-content: flex-end;
+}
+
+.chart-bar {
+  width: 100%;
+  max-width: 28px;
+  background: var(--tg-button);
+  border-radius: 4px 4px 0 0;
+  min-height: 4px;
+}
+
+.chart-label {
+  font-size: 0.7rem;
+  margin-top: 4px;
+  opacity: 0.7;
+}
+
+.chart-legend {
+  font-size: 0.8rem;
+  opacity: 0.7;
+  margin-top: 8px;
+  text-align: center;
+}
+
+.insight p {
+  line-height: 1.5;
+  opacity: 0.9;
+}
+
+.btn-primary,
+.btn-secondary {
+  width: 100%;
+  margin-top: 12px;
+  padding: 12px;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.btn-primary {
+  background: var(--tg-button);
+  color: var(--tg-button-text);
+}
+
+.btn-secondary {
+  background: color-mix(in srgb, var(--tg-text) 10%, transparent);
+  color: var(--tg-text);
+  opacity: 0.6;
+}
+
+.export-locked p {
+  margin-bottom: 4px;
+  opacity: 0.85;
+}
+
+.weight-bar {
+  background: color-mix(in srgb, var(--tg-button) 80%, #4caf50);
+}
+
+.weight-list {
+  list-style: none;
+}
+
+.weight-list li {
+  padding: 8px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--tg-text) 10%, transparent);
+}
+
+.recipes ul {
+  list-style: none;
+  line-height: 1.6;
+}
+
+.recipes li {
+  padding: 6px 0;
+}
+
+.micro-grid {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+@media (min-width: 360px) {
+  .micro-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.tabs {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.tab {
+  flex: 1;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 8px;
+  background: var(--tg-secondary);
+  color: var(--tg-text);
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.tab.active {
+  background: var(--tg-button);
+  color: var(--tg-button-text);
+}
+
+.week-summary {
+  margin-top: 8px;
+  opacity: 0.85;
+}
+
+.chart-card {
+  padding-bottom: 8px;
+}
+
+.chart {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 6px;
+  height: 140px;
+  padding-top: 8px;
+}
+
+.chart-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+  justify-content: flex-end;
+}
+
+.chart-bar {
+  width: 100%;
+  max-width: 28px;
+  background: var(--tg-button);
+  border-radius: 4px 4px 0 0;
+  min-height: 4px;
+}
+
+.chart-label {
+  font-size: 0.7rem;
+  margin-top: 4px;
+  opacity: 0.7;
+}
+
+.chart-legend {
+  font-size: 0.75rem;
+  opacity: 0.6;
+  margin-top: 8px;
+  text-align: center;
+}
+
+.insight p {
+  line-height: 1.5;
+  opacity: 0.9;
+}
+
+.btn-primary,
+.btn-secondary {
+  width: 100%;
+  margin-top: 8px;
+  padding: 12px;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.95rem;
+}
+
+.btn-primary {
+  background: var(--tg-button);
+  color: var(--tg-button-text);
+}
+
+.btn-secondary {
+  background: color-mix(in srgb, var(--tg-text) 10%, transparent);
+  color: var(--tg-text);
+  opacity: 0.6;
+}
+
+.export-locked p {
+  margin-bottom: 8px;
+  opacity: 0.8;
+}
