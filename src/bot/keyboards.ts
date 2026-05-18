@@ -49,16 +49,12 @@ export function statsKeyboard() {
 }
 
 export function premiumKeyboard() {
-  const kb = new InlineKeyboard()
+  return new InlineKeyboard()
     .text("Basic · 100 ⭐", "premium:buy:basic")
     .row()
     .text("Pro · 300 ⭐", "premium:buy:pro")
     .row()
     .text("Ultra · 700 ⭐", "premium:buy:ultra");
-  if (config.testPaymentsEnabled) {
-    kb.row().text("TEST Premium · 1 ⭐", "premium:buy:test");
-  }
-  return kb;
 }
 
 export function upgradeKeyboard() {

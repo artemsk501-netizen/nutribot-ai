@@ -141,38 +141,6 @@ export function registerCommands(bot: Bot): void {
     await ctx.reply(formatAdminMetrics(metrics), { parse_mode: "Markdown" });
   });
 
-  bot.command("debug_premium", async (ctx) => {
-    if (!isAdmin(ctx)) {
-      await ctx.reply("⛔ Команда доступна только администратору.");
-      return;
-    }
-    const user = await ensureUser(ctx);
-    if (!user) return;
-
-    const store = getStore();
-    const date = todayISO();
-    const [freshUser, scanUsage, aiUsage] = await Promise.all([
-      store.getUser(user.telegramId),
-      store.getUsageStatus(user.telegramId, "photo_scan", date),
-      store.getUsageStatus(user.telegramId, "ai_message", date),
-    ]);
-
-    await ctx.reply(
-      "🧪 **Debug Premium**\n" +
-        "━━━━━━━━━━━━━━\n" +
-        `Plan: **${freshUser?.subscriptionPlan ?? "free"}**\n` +
-        `Premium: **${freshUser?.premium ? "yes" : "no"}**\n` +
-        `Premium tier: **${freshUser?.premiumPlan ?? "-"}**\n` +
-        `premiumExpiresAt: \`${freshUser?.premiumExpiresAt ?? "-"}\`\n` +
-        `lastUsageDate: \`${freshUser?.lastUsageDate ?? "-"}\`\n` +
-        `scansToday: **${freshUser?.scansToday ?? 0}**\n` +
-        `aiMessagesToday: **${freshUser?.aiMessagesToday ?? 0}**\n\n` +
-        `Photo remaining: **${scanUsage.remaining ?? "unlimited"}**\n` +
-        `AI remaining: **${aiUsage.remaining ?? "unlimited"}**`,
-      { parse_mode: "Markdown" },
-    );
-  });
-
   bot.command("week", async (ctx) => {
     await ensureUser(ctx);
     await sendWeekStats(ctx);
@@ -379,7 +347,6 @@ export const BOT_COMMANDS = [
   { command: "editweight", description: "Изменить вес" },
   { command: "editactivity", description: "Изменить активность" },
   { command: "admin", description: "Админ-статистика" },
-  { command: "debug_premium", description: "Debug premium/limits" },
   { command: "help", description: "Справка" },
 ];
 

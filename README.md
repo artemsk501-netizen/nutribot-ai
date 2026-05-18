@@ -129,19 +129,6 @@ MINI_APP_URL=https://xxxx.ngrok-free.app/miniapp/
 
 Покупка: `/premium`. После `successful_payment` сохраняются тариф, `subscriptionPlan=premium`, дата окончания и запись платежа. При истечении срока premium отключается автоматически при следующем чтении профиля.
 
-### Test Payments
-
-В `NODE_ENV=development` или при `TEST_PAYMENTS=true` в меню `/premium` появляется тестовый тариф:
-
-- цена: `1` Telegram Star;
-- payload: `premium_test`;
-- после `successful_payment`: `TEST PREMIUM` на 1 день;
-- production цены Basic/Pro/Ultra не меняются.
-
-Admin-only debug:
-
-- `/debug_premium` — показывает `subscriptionPlan`, `premiumExpiresAt`, `scansToday`, `aiMessagesToday` и remaining limits.
-
 ## Local Docker
 
 ```bash
@@ -165,7 +152,7 @@ Railway должен использовать Nixpacks, не Docker. Это за
 
 1. Создайте новый Railway project из GitHub repo.
 2. Builder: Nixpacks (`railway.json`).
-3. Добавьте переменные из `.env.example`: `BOT_TOKEN`, `OPENAI_API_KEY`, `ADMIN_IDS`, `TEST_PAYMENTS`, `NODE_ENV`, `SQLITE_PATH`, `SENTRY_DSN`, `BOT_USERNAME`, `WEBHOOK_URL`, `MINI_APP_URL`.
+3. Добавьте переменные из `.env.example`: `BOT_TOKEN`, `OPENAI_API_KEY`, `ADMIN_IDS`, `NODE_ENV`, `SQLITE_PATH`, `SENTRY_DSN`, `BOT_USERNAME`, `WEBHOOK_URL`, `MINI_APP_URL`.
 4. Для SQLite подключите persistent volume и задайте `SQLITE_PATH=/app/data/nutribot.db`.
 5. Start command: `npm start`.
 6. После деплоя выставьте `WEBHOOK_URL=https://your-railway-domain` и `MINI_APP_URL=https://your-railway-domain/miniapp/`.
@@ -178,7 +165,6 @@ Railway должен использовать Nixpacks, не Docker. Это за
 - `BOT_TOKEN`
 - `OPENAI_API_KEY`
 - `ADMIN_IDS`
-- `TEST_PAYMENTS=false`
 - `NODE_ENV=production`
 - `SQLITE_PATH=/app/data/nutribot.db` или другой persistent path
 - `SENTRY_DSN`

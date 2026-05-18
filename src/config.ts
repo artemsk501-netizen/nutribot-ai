@@ -46,10 +46,6 @@ const envSchema = z.object({
     ),
   RATE_LIMIT_WINDOW_MS: z.coerce.number().default(60_000),
   RATE_LIMIT_MAX_MESSAGES: z.coerce.number().default(25),
-  TEST_PAYMENTS: z
-    .string()
-    .optional()
-    .transform((v) => v === "true" || v === "1"),
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
   WEEKLY_REPORTS_ENABLED: z
     .string()
@@ -81,5 +77,4 @@ export const config = {
   ...env,
   miniAppUrl: env.MINI_APP_URL ?? (env.WEBHOOK_URL ? `${env.WEBHOOK_URL.replace(/\/$/, "")}/miniapp/` : ""),
   isProduction: env.NODE_ENV === "production",
-  testPaymentsEnabled: env.NODE_ENV === "development" || env.TEST_PAYMENTS,
 };

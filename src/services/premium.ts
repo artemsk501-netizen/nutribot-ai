@@ -1,9 +1,6 @@
 import type { PremiumFeature, PremiumPlan, UserProfile } from "../types/index.js";
 
 const PREMIUM_DAYS = 30;
-const TEST_PREMIUM_DAYS = 1;
-
-export const TEST_PREMIUM_PAYLOAD = "premium_test";
 
 export interface PremiumPlanConfig {
   plan: PremiumPlan;
@@ -71,12 +68,6 @@ export function premiumExpiresAtFromNow(): string {
   return d.toISOString();
 }
 
-export function testPremiumExpiresAtFromNow(): string {
-  const d = new Date();
-  d.setUTCDate(d.getUTCDate() + TEST_PREMIUM_DAYS);
-  return d.toISOString();
-}
-
 export function normalizePremiumPlan(plan: unknown): PremiumPlan | undefined {
   return plan === "basic" || plan === "pro" || plan === "ultra" ? plan : undefined;
 }
@@ -103,8 +94,4 @@ export function premiumPayload(plan: PremiumPlan): string {
 export function premiumPlanFromPayload(payload?: string): PremiumPlan | undefined {
   const match = payload?.match(/^premium:(basic|pro|ultra):monthly$/);
   return normalizePremiumPlan(match?.[1]);
-}
-
-export function isTestPremiumPayload(payload?: string): boolean {
-  return payload === TEST_PREMIUM_PAYLOAD;
 }

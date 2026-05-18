@@ -3,10 +3,8 @@ import assert from "node:assert/strict";
 import {
   getPremiumPlan,
   hasPremiumFeature,
-  isTestPremiumPayload,
   premiumPayload,
   premiumPlanFromPayload,
-  testPremiumExpiresAtFromNow,
 } from "../src/services/premium.js";
 import type { UserProfile } from "../src/types/index.js";
 
@@ -31,8 +29,7 @@ test("premium payload roundtrip", () => {
   assert.equal(premiumPlanFromPayload(premiumPayload("pro")), "pro");
   assert.equal(premiumPlanFromPayload(premiumPayload("ultra")), "ultra");
   assert.equal(premiumPlanFromPayload("premium:bad:monthly"), undefined);
-  assert.equal(isTestPremiumPayload("premium_test"), true);
-  assert.equal(isTestPremiumPayload(premiumPayload("basic")), false);
+  assert.equal(premiumPlanFromPayload("premium:unknown:monthly"), undefined);
 });
 
 test("premium feature gates by plan", () => {
@@ -47,10 +44,4 @@ test("expired premium disables feature access", () => {
   const expired = user("ultra", new Date(Date.now() - 86_400_000).toISOString());
   assert.equal(getPremiumPlan(expired), undefined);
   assert.equal(hasPremiumFeature(expired, "advancedAnalytics"), false);
-});
-
-test("test premium expires in about one day", () => {
-  const diffMs = new Date(testPremiumExpiresAtFromNow()).getTime() - Date.now();
-  assert.ok(diffMs > 23 * 60 * 60 * 1000);
-  assert.ok(diffMs <= 25 * 60 * 60 * 1000);
 });
