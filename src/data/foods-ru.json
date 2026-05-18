@@ -1,0 +1,72 @@
+[
+  {
+    "name": "Овсяная каша",
+    "aliases": ["овсянка", "каша овсяная", "oatmeal", "porridge"],
+    "calories": 370,
+    "macros": { "proteinG": 13.2, "fatG": 6.5, "carbsG": 67.7 },
+    "servingG": 100
+  },
+  {
+    "name": "Гречка вареная",
+    "aliases": ["гречка", "гречневая каша", "buckwheat"],
+    "calories": 110,
+    "macros": { "proteinG": 3.6, "fatG": 1.1, "carbsG": 21.3 },
+    "servingG": 100
+  },
+  {
+    "name": "Куриная грудка",
+    "aliases": ["курица", "куриное филе", "chicken breast", "chicken"],
+    "calories": 165,
+    "macros": { "proteinG": 31, "fatG": 3.6, "carbsG": 0 },
+    "servingG": 100
+  },
+  {
+    "name": "Рис вареный",
+    "aliases": ["рис", "white rice", "rice"],
+    "calories": 130,
+    "macros": { "proteinG": 2.7, "fatG": 0.3, "carbsG": 28.2 },
+    "servingG": 100
+  },
+  {
+    "name": "Яйцо куриное",
+    "aliases": ["яйцо", "яйца", "egg", "eggs"],
+    "calories": 155,
+    "macros": { "proteinG": 12.6, "fatG": 10.6, "carbsG": 1.1 },
+    "servingG": 100
+  },
+  {
+    "name": "Творог 5%",
+    "aliases": ["творог", "cottage cheese"],
+    "calories": 121,
+    "macros": { "proteinG": 17.2, "fatG": 5, "carbsG": 1.8 },
+    "servingG": 100
+  },
+  {
+    "name": "Борщ",
+    "aliases": ["борщ со сметаной", "borscht"],
+    "calories": 57,
+    "macros": { "proteinG": 3.8, "fatG": 2.9, "carbsG": 4.3 },
+    "servingG": 100
+  },
+  {
+    "name": "Салат овощной",
+    "aliases": ["овощной салат", "салат", "vegetable salad"],
+    "calories": 45,
+    "macros": { "proteinG": 1.5, "fatG": 2.5, "carbsG": 4.2 },
+    "servingG": 100
+  },
+  {
+    "name": "Лосось",
+    "aliases": ["семга", "красная рыба", "salmon"],
+    "calories": 208,
+    "macros": { "proteinG": 20.4, "fatG": 13.4, "carbsG": 0 },
+    "servingG": 100
+  },
+  {
+    "name": "Банан",
+    "aliases": ["banana"],
+    "calories": 89,
+    "macros": { "proteinG": 1.1, "fatG": 0.3, "carbsG": 22.8 },
+    "servingG": 100
+  }
+]
