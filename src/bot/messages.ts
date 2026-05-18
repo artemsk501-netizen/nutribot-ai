@@ -1,4 +1,4 @@
-import type { AdminMetrics, DayStats, FoodAnalysisResult, GoalType, MonthStats, ReferralStats, UserGoal, WeekStats } from "../types/index.js";
+import type { AdminMetrics, DayStats, FoodAnalysisResult, GoalType, MealEntry, MonthStats, ReferralStats, UserGoal, WeekStats } from "../types/index.js";
 import { formatMicronutrients, formatMicronutrientsBrief } from "../services/micronutrients.js";
 import { formatDateRu } from "../utils/date.js";
 
@@ -14,7 +14,7 @@ export const WELCOME_TEXT = `👋 **Добро пожаловать в NutriBot!
 export const HELP_TEXT = `📖 **Справка NutriBot**
 
 **Основное**
-📷 Фото еды — автоматический анализ и запись в дневник
+📷 Фото еды — анализ, затем подтверждение записи в дневник
 💬 Обычный текст — AI nutrition coach
 /photo — подсказка по отправке фото
 
@@ -92,6 +92,27 @@ export function formatMealCard(result: FoodAnalysisResult, premium = false): str
   }
 
   text += `\n\n💡 _${escapeMd(advice)}_`;
+  return text;
+}
+
+export function formatPendingMealSummary(meal: MealEntry, premium = false): string {
+  let text =
+    "📸 **Анализ готов**\n\n" +
+    `🍽 **Блюдо:** ${escapeMd(meal.dishName)}\n` +
+    `🔥 **Калории:** ${meal.calories} ккал\n` +
+    `🥩 **Белки:** ${meal.macros.proteinG} г\n` +
+    `🧈 **Жиры:** ${meal.macros.fatG} г\n` +
+    `🍞 **Углеводы:** ${meal.macros.carbsG} г`;
+
+  if (premium && meal.micronutrients) {
+    text += formatMicronutrients(meal.micronutrients);
+  }
+
+  if (meal.advice) {
+    text += `\n\n💡 _${escapeMd(meal.advice)}_`;
+  }
+
+  text += "\n\nДобавить это в статистику дня?";
   return text;
 }
 

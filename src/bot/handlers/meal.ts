@@ -1,15 +1,27 @@
 import { randomUUID } from "node:crypto";
-import type { Context } from "grammy";
+import type { Bot, Context } from "grammy";
 import { analyzeFoodFromPhoto, analyzeFoodFromText } from "../../services/foodAnalysis.js";
 import { FoodAnalysisError } from "../../services/foodAnalysisErrors.js";
 import { getPremiumPlan, hasPremiumFeature } from "../../services/premium.js";
 import { getStore } from "../../services/store.js";
 import { ensureUser } from "../helpers/user.js";
 import type { MealEntry } from "../../types/index.js";
-import { afterMealKeyboard, upgradeKeyboard } from "../keyboards.js";
-import { ANALYZING_TEXT, formatMealCard } from "../messages.js";
+import { afterMealKeyboard, mealConfirmationKeyboard, upgradeKeyboard } from "../keyboards.js";
+import { ANALYZING_TEXT, formatMealCard, formatPendingMealSummary } from "../messages.js";
 import { formatUsageCounter, LIMIT_REACHED_MESSAGE } from "../../services/usageLimits.js";
 import { nowInBotDayISO, todayISO } from "../../utils/date.js";
+
+type EditStep = "calories" | "protein" | "fat" | "carbs";
+
+interface PendingMeal {
+  meal: MealEntry;
+  showMicronutrients: boolean;
+  expiresAt: number;
+  editStep?: EditStep;
+}
+
+const PENDING_TTL_MS = 30 * 60 * 1000;
+const pendingMeals = new Map<number, PendingMeal>();
 
 export async function processFoodAnalysis(
   ctx: Context,
@@ -51,7 +63,6 @@ export async function processFoodAnalysis(
     createdAt: nowInBotDayISO(),
   };
 
-  await store.addMeal(meal);
   const usage = photoFileId
     ? await store.incrementUsage(userId, "photo_scan", meal.createdAt.slice(0, 10))
     : undefined;
@@ -61,10 +72,21 @@ export async function processFoodAnalysis(
     languageCode: ctx.from?.language_code,
   });
 
+  if (photoFileId) {
+    pendingMeals.set(userId, {
+      meal,
+      showMicronutrients,
+      expiresAt: Date.now() + PENDING_TTL_MS,
+    });
+  }
+
   const card = usage
-    ? `${formatMealCard(result, showMicronutrients)}\n\n${formatUsageCounter(usage)}`
+    ? `${formatPendingMealSummary(meal, showMicronutrients)}\n\n${formatUsageCounter(usage)}`
     : formatMealCard(result, showMicronutrients);
-  const markup = { parse_mode: "Markdown" as const, reply_markup: afterMealKeyboard() };
+  const markup = {
+    parse_mode: "Markdown" as const,
+    reply_markup: photoFileId ? mealConfirmationKeyboard() : afterMealKeyboard(),
+  };
 
   if (photoFileId) {
     await ctx.api.deleteMessage(ctx.chat!.id, statusMsg.message_id).catch(() => undefined);
@@ -73,7 +95,10 @@ export async function processFoodAnalysis(
     await ctx.api.editMessageText(ctx.chat!.id, statusMsg.message_id, card, markup);
   }
 
-  await notifyCalorieGoalIfNeeded(ctx, userId, meal.createdAt.slice(0, 10));
+  if (!photoFileId) {
+    await store.addMeal(meal);
+    await notifyCalorieGoalIfNeeded(ctx, userId, meal.createdAt.slice(0, 10));
+  }
 }
 
 async function notifyCalorieGoalIfNeeded(ctx: Context, userId: number, date: string): Promise<void> {
@@ -157,4 +182,130 @@ export async function handleTextMeal(ctx: Context, text: string): Promise<void> 
   await processFoodAnalysis(ctx, () =>
     analyzeFoodFromText(text, analyzeOptionsFromUser(user)),
   );
+}
+
+export function registerMealConfirmation(bot: Bot): void {
+  bot.callbackQuery("meal:add", async (ctx) => {
+    await ctx.answerCallbackQuery();
+    await confirmPendingMeal(ctx);
+  });
+
+  bot.callbackQuery("meal:edit", async (ctx) => {
+    const pending = getFreshPending(ctx.from.id);
+    if (!pending) {
+      await ctx.answerCallbackQuery({ text: "Черновик анализа устарел." });
+      await ctx.reply("⏳ Черновик анализа устарел. Отправьте фото ещё раз.");
+      return;
+    }
+
+    pending.editStep = "calories";
+    pending.expiresAt = Date.now() + PENDING_TTL_MS;
+    await ctx.answerCallbackQuery();
+    await ctx.reply("✏️ Введите калории (ккал), например: `420`", { parse_mode: "Markdown" });
+  });
+
+  bot.callbackQuery("meal:discard", async (ctx) => {
+    pendingMeals.delete(ctx.from.id);
+    await ctx.answerCallbackQuery();
+    await ctx.reply("Окей, не добавляю в статистику.");
+  });
+}
+
+export async function handlePendingMealText(ctx: Context): Promise<boolean> {
+  const userId = ctx.from?.id;
+  const text = ctx.message?.text?.trim();
+  if (!userId || !text || text.startsWith("/")) return false;
+
+  const pending = getFreshPending(userId);
+  if (!pending?.editStep) return false;
+
+  const value = parsePositiveNumber(text);
+  if (value == null) {
+    await ctx.reply("Введите положительное число, например: `120` или `12.5`", { parse_mode: "Markdown" });
+    return true;
+  }
+
+  switch (pending.editStep) {
+    case "calories":
+      pending.meal.calories = Math.round(value);
+      pending.editStep = "protein";
+      await ctx.reply("🥩 Введите белки (г), например: `30`", { parse_mode: "Markdown" });
+      return true;
+    case "protein":
+      pending.meal.macros.proteinG = round1(value);
+      pending.editStep = "fat";
+      await ctx.reply("🧈 Введите жиры (г), например: `12`", { parse_mode: "Markdown" });
+      return true;
+    case "fat":
+      pending.meal.macros.fatG = round1(value);
+      pending.editStep = "carbs";
+      await ctx.reply("🍞 Введите углеводы (г), например: `45`", { parse_mode: "Markdown" });
+      return true;
+    case "carbs":
+      pending.meal.macros.carbsG = round1(value);
+      pending.editStep = undefined;
+      pending.expiresAt = Date.now() + PENDING_TTL_MS;
+      await ctx.reply(formatPendingMealSummary(pending.meal, pending.showMicronutrients), {
+        parse_mode: "Markdown",
+        reply_markup: mealConfirmationKeyboard(),
+      });
+      return true;
+  }
+}
+
+export function getPendingMealForTest(userId: number): MealEntry | undefined {
+  return getFreshPending(userId)?.meal;
+}
+
+export function clearPendingMealsForTest(): void {
+  pendingMeals.clear();
+}
+
+async function confirmPendingMeal(ctx: Context): Promise<void> {
+  const userId = ctx.from?.id;
+  if (!userId) return;
+
+  const pending = getFreshPending(userId);
+  if (!pending) {
+    await ctx.reply("⏳ Черновик анализа устарел. Отправьте фото ещё раз.");
+    return;
+  }
+
+  const store = getStore();
+  await store.addMeal(pending.meal);
+  pendingMeals.delete(userId);
+
+  const result = {
+    dishName: pending.meal.dishName,
+    calories: pending.meal.calories,
+    macros: pending.meal.macros,
+    advice: pending.meal.advice ?? "Добавлено в статистику дня.",
+    micronutrients: pending.meal.micronutrients,
+  };
+
+  await ctx.reply(formatMealCard(result, pending.showMicronutrients), {
+    parse_mode: "Markdown",
+    reply_markup: afterMealKeyboard(),
+  });
+  await notifyCalorieGoalIfNeeded(ctx, userId, pending.meal.createdAt.slice(0, 10));
+}
+
+function getFreshPending(userId: number): PendingMeal | undefined {
+  const pending = pendingMeals.get(userId);
+  if (!pending) return undefined;
+  if (pending.expiresAt < Date.now()) {
+    pendingMeals.delete(userId);
+    return undefined;
+  }
+  return pending;
+}
+
+function parsePositiveNumber(text: string): number | null {
+  const value = Number(text.replace(",", "."));
+  if (!Number.isFinite(value) || value < 0) return null;
+  return value;
+}
+
+function round1(value: number): number {
+  return Math.round(value * 10) / 10;
 }

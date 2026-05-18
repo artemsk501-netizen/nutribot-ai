@@ -20,7 +20,13 @@ Telegram smoke test:
 
 - `/start` starts onboarding or resumes an incomplete profile.
 - `/profile` shows saved profile or asks to complete onboarding.
-- Send 3 food photos as a free user: each photo is analyzed and saved.
+- Send a food photo as a free user: bot analyzes it and shows `✅ Добавить / ✏️ Изменить / ❌ Не добавлять`.
+- Before pressing `✅ Добавить`, run `/stats`: the analyzed meal is not counted yet.
+- Press `✅ Добавить`: meal is saved and `/stats` shows its calories and BJU.
+- Send another food photo and press `❌ Не добавлять`: `/stats` does not change.
+- Send another food photo and press `✏️ Изменить`: enter calories, protein, fat, carbs step by step; updated values are shown before saving.
+- Press `✅ Добавить` after edit: `/stats` shows edited calories and BJU.
+- Send 3 food photos as a free user: each successful analysis consumes one scan whether or not the meal is saved.
 - Send the 4th food photo as a free user: bot replies with the Premium limit message and does not analyze.
 - Ask 3 text nutrition questions as a free user: bot answers with short AI coaching.
 - Ask the 4th text question as a free user: bot replies with the Premium limit message and does not call AI.

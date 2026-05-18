@@ -27,7 +27,7 @@ import {
   WELCOME_TEXT,
 } from "../messages.js";
 import { isAdmin } from "../middleware.js";
-import { handlePhoto } from "./meal.js";
+import { handlePendingMealText, handlePhoto } from "./meal.js";
 import { formatProfile, restartOnboardingStep, startOrResumeOnboarding } from "./onboarding.js";
 import { formatPremiumMenu } from "./payments.js";
 import { handleNutritionText, handleUnsupportedFile } from "./aiChat.js";
@@ -259,7 +259,10 @@ export function registerCommands(bot: Bot): void {
     await ctx.reply(HELP_TEXT, { parse_mode: "Markdown" });
   });
 
-  bot.on("message:text", handleNutritionText);
+  bot.on("message:text", async (ctx) => {
+    if (await handlePendingMealText(ctx)) return;
+    await handleNutritionText(ctx);
+  });
 }
 
 async function sendDayStats(ctx: Context): Promise<void> {

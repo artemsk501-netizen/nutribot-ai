@@ -40,6 +40,14 @@ export function afterMealKeyboard() {
   return kb;
 }
 
+export function mealConfirmationKeyboard() {
+  return new InlineKeyboard()
+    .text("✅ Добавить", "meal:add")
+    .text("✏️ Изменить", "meal:edit")
+    .row()
+    .text("❌ Не добавлять", "meal:discard");
+}
+
 export function statsKeyboard() {
   const kb = new InlineKeyboard();
   if (config.miniAppUrl) {
