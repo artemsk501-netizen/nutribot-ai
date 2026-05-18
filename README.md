@@ -142,7 +142,7 @@ Admin-only debug:
 
 - `/debug_premium` — показывает `subscriptionPlan`, `premiumExpiresAt`, `scansToday`, `aiMessagesToday` и remaining limits.
 
-## Docker
+## Local Docker
 
 ```bash
 cp .env.example .env
@@ -150,7 +150,7 @@ cp .env.example .env
 npm run docker:full
 ```
 
-Данные SQLite хранятся в Docker volume `nutribot_sqlite`. Для 24/7 запуска используйте `npm start` после `npm run build` или Docker/hosting с постоянным volume для `/app/data`.
+Локальный Docker использует `Dockerfile.local`, чтобы Railway не выбирал Docker builder автоматически. Данные SQLite хранятся в Docker volume `nutribot_sqlite`. Для 24/7 запуска используйте `npm start` после `npm run build` или hosting с постоянным volume для `/app/data`.
 
 Health check:
 
@@ -161,10 +161,12 @@ curl https://your-domain/api/health
 
 ## Railway Deployment
 
+Railway должен использовать Nixpacks, не Docker. Это закреплено в `railway.json`.
+
 1. Создайте новый Railway project из GitHub repo.
-2. Добавьте переменные из `.env.example`: `BOT_TOKEN`, `OPENAI_API_KEY`, `ADMIN_IDS`, `TEST_PAYMENTS`, `NODE_ENV`, `SQLITE_PATH`, `SENTRY_DSN`, `BOT_USERNAME`, `WEBHOOK_URL`, `MINI_APP_URL`.
-3. Для SQLite подключите persistent volume и задайте `SQLITE_PATH=/app/data/nutribot.db`.
-4. Build command: `npm run build`.
+2. Builder: Nixpacks (`railway.json`).
+3. Добавьте переменные из `.env.example`: `BOT_TOKEN`, `OPENAI_API_KEY`, `ADMIN_IDS`, `TEST_PAYMENTS`, `NODE_ENV`, `SQLITE_PATH`, `SENTRY_DSN`, `BOT_USERNAME`, `WEBHOOK_URL`, `MINI_APP_URL`.
+4. Для SQLite подключите persistent volume и задайте `SQLITE_PATH=/app/data/nutribot.db`.
 5. Start command: `npm start`.
 6. После деплоя выставьте `WEBHOOK_URL=https://your-railway-domain` и `MINI_APP_URL=https://your-railway-domain/miniapp/`.
 7. Проверьте `/health`, `/api/health`, затем `/start` в Telegram.
