@@ -1,4 +1,16 @@
-import type { ActivityLevel, MealEntry, Micronutrients, OnboardingStep, SubscriptionPlan, UserGoal, UserProfile } from "../types/index.js";
+import type {
+  ActivityLevel,
+  Locale,
+  MealEntry,
+  MealSource,
+  Micronutrients,
+  OnboardingStep,
+  PortionSize,
+  SubscriptionPlan,
+  UserGoal,
+  UserProfile,
+  WaterSettings,
+} from "../types/index.js";
 import { normalizePremiumPlan } from "./premium.js";
 
 export function rowToUser(row: Record<string, unknown>): UserProfile {
@@ -7,6 +19,7 @@ export function rowToUser(row: Record<string, unknown>): UserProfile {
     telegramId: Number(row.telegram_id),
     firstName: (row.first_name as string) ?? undefined,
     languageCode: (row.language_code as string) ?? undefined,
+    locale: normalizeLocale(row.locale),
     referredBy: row.referred_by != null ? Number(row.referred_by) : undefined,
     goal: goalType
       ? {
@@ -36,8 +49,27 @@ export function rowToUser(row: Record<string, unknown>): UserProfile {
     scansToday: row.scans_today != null ? Number(row.scans_today) : 0,
     aiMessagesToday: row.ai_messages_today != null ? Number(row.ai_messages_today) : 0,
     lastUsageDate: row.last_usage_date ? String(row.last_usage_date) : undefined,
+    water: mapWaterSettings(row),
     createdAt: String(row.created_at),
   };
+}
+
+function mapWaterSettings(row: Record<string, unknown>): WaterSettings {
+  return {
+    remindersEnabled: Boolean(row.water_reminders_enabled),
+    goalMl: Number(row.water_goal_ml ?? 2000),
+    intervalHours: Number(row.water_interval_hours ?? 3),
+    quietStart: String(row.water_quiet_start ?? "22:00"),
+    quietEnd: String(row.water_quiet_end ?? "09:00"),
+    lastReminderAt: row.water_last_reminder_at ? String(row.water_last_reminder_at) : undefined,
+    remindersToday: Number(row.water_reminders_today ?? 0),
+    remindersDate: row.water_reminders_date ? String(row.water_reminders_date) : undefined,
+    lastActivityAt: row.water_last_activity_at ? String(row.water_last_activity_at) : undefined,
+  };
+}
+
+function normalizeLocale(value: unknown): Locale | undefined {
+  return value === "ru" || value === "en" || value === "it" ? value : undefined;
 }
 
 function normalizeSubscriptionPlan(value: unknown): SubscriptionPlan {
@@ -49,7 +81,8 @@ function normalizeActivity(value: unknown): ActivityLevel | undefined {
 }
 
 function normalizeOnboardingStep(value: unknown): OnboardingStep | undefined {
-  return value === "goal" ||
+  return value === "language" ||
+    value === "goal" ||
     value === "current_weight" ||
     value === "target_weight" ||
     value === "height" ||
@@ -88,6 +121,24 @@ export function rowToMeal(row: Record<string, unknown>): MealEntry {
     usdaFdcId: row.usda_fdc_id != null ? Number(row.usda_fdc_id) : undefined,
     caloriesSource: (row.calories_source as MealEntry["caloriesSource"]) ?? "ai",
     micronutrients,
+    grams: row.grams != null ? Number(row.grams) : undefined,
+    portionSize: normalizePortionSize(row.portion_size),
+    confidence: row.confidence != null ? Number(row.confidence) : undefined,
+    caloriesPer100g: row.calories_per_100g != null ? Number(row.calories_per_100g) : undefined,
+    proteinPer100g: row.protein_per_100g != null ? Number(row.protein_per_100g) : undefined,
+    fatPer100g: row.fat_per_100g != null ? Number(row.fat_per_100g) : undefined,
+    carbsPer100g: row.carbs_per_100g != null ? Number(row.carbs_per_100g) : undefined,
+    source: normalizeMealSource(row.source),
     createdAt: String(row.created_at),
   };
+}
+
+function normalizePortionSize(value: unknown): PortionSize | undefined {
+  return value === "small" || value === "medium" || value === "large" || value === "custom"
+    ? value
+    : undefined;
+}
+
+function normalizeMealSource(value: unknown): MealSource | undefined {
+  return value === "ai" || value === "user_corrected" ? value : undefined;
 }

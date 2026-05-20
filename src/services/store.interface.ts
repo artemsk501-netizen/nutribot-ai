@@ -9,6 +9,9 @@ import type {
   UsageStatus,
   UserGoal,
   UserProfile,
+  WaterDayStats,
+  WaterLogEntry,
+  WaterSettings,
   WeekStats,
   WeightEntry,
   WeightHistory,
@@ -37,4 +40,10 @@ export interface Store {
   getReferralStats(userId: number, botUsername: string): Promise<ReferralStats>;
   getUsageStatus(userId: number, kind: UsageKind, date: string): Promise<UsageStatus>;
   incrementUsage(userId: number, kind: UsageKind, date: string): Promise<UsageStatus>;
+  setWaterSettings(userId: number, settings: Partial<WaterSettings>): Promise<UserProfile>;
+  addWaterLog(entry: WaterLogEntry): Promise<void>;
+  getWaterDayStats(userId: number, date: string): Promise<WaterDayStats>;
+  getUsersDueWaterReminder(nowIso: string): Promise<number[]>;
+  markWaterReminderSent(userId: number, nowIso: string): Promise<void>;
+  touchWaterActivity(userId: number, nowIso: string): Promise<void>;
 }

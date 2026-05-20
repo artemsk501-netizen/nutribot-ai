@@ -11,6 +11,9 @@ import type {
   UsageStatus,
   UserGoal,
   UserProfile,
+  WaterDayStats,
+  WaterLogEntry,
+  WaterSettings,
   WeightEntry,
   WeightHistory,
 } from "../types/index.js";
@@ -461,6 +464,44 @@ export class PostgresStore implements Store {
          AND (last_usage_date IS NULL OR last_usage_date <> $1)`,
       [date, userId],
     );
+  }
+
+  async setWaterSettings(userId: number, settings: Partial<WaterSettings>): Promise<UserProfile> {
+    return this.upsertUser({ telegramId: userId, water: settings as WaterSettings });
+  }
+
+  async addWaterLog(entry: WaterLogEntry): Promise<void> {
+    await this.pool.query(
+      "INSERT INTO water_logs (id, user_id, amount_ml, created_at) VALUES ($1, $2, $3, $4)",
+      [entry.id, entry.userId, entry.amountMl, entry.createdAt],
+    );
+  }
+
+  async getWaterDayStats(userId: number, date: string): Promise<WaterDayStats> {
+    const { rows } = await this.pool.query(
+      `SELECT COALESCE(SUM(amount_ml), 0) AS total, COUNT(*) AS cnt
+       FROM water_logs WHERE user_id = $1 AND (created_at AT TIME ZONE 'UTC')::date = $2::date`,
+      [userId, date],
+    );
+    const user = await this.getUser(userId);
+    return {
+      date,
+      totalMl: Number(rows[0]?.total ?? 0),
+      goalMl: user?.water?.goalMl ?? 2000,
+      logCount: Number(rows[0]?.cnt ?? 0),
+    };
+  }
+
+  async getUsersDueWaterReminder(): Promise<number[]> {
+    return [];
+  }
+
+  async markWaterReminderSent(userId: number, nowIso: string): Promise<void> {
+    await this.setWaterSettings(userId, { lastReminderAt: nowIso });
+  }
+
+  async touchWaterActivity(userId: number, nowIso: string): Promise<void> {
+    await this.setWaterSettings(userId, { lastActivityAt: nowIso });
   }
 }
 

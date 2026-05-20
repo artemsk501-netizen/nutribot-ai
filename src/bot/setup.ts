@@ -5,7 +5,9 @@ import { registerInline } from "./handlers/inline.js";
 import { registerOnboarding } from "./handlers/onboarding.js";
 import { registerPayments } from "./handlers/payments.js";
 import { registerWeightCommands } from "./handlers/weight.js";
+import { registerLanguage } from "./handlers/language.js";
 import { registerMealConfirmation } from "./handlers/meal.js";
+import { registerWater } from "./handlers/water.js";
 import { registerMiddleware } from "./middleware.js";
 
 export function createBot(): Bot {
@@ -13,8 +15,10 @@ export function createBot(): Bot {
 
   registerMiddleware(bot);
   registerOnboarding(bot);
+  registerLanguage(bot);
   registerCommands(bot);
   registerMealConfirmation(bot);
+  registerWater(bot);
   registerWeightCommands(bot);
   registerInline(bot);
   registerPayments(bot);

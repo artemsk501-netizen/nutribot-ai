@@ -1,4 +1,5 @@
-import type { AdminMetrics, DayStats, FoodAnalysisResult, GoalType, MealEntry, MonthStats, ReferralStats, UserGoal, WeekStats } from "../types/index.js";
+import { tSync } from "../i18n/index.js";
+import type { AdminMetrics, DayStats, FoodAnalysisResult, GoalType, Locale, MealEntry, MonthStats, ReferralStats, UserGoal, WeekStats } from "../types/index.js";
 import { formatMicronutrients, formatMicronutrientsBrief } from "../services/micronutrients.js";
 import { formatDateRu } from "../utils/date.js";
 
@@ -95,14 +96,23 @@ export function formatMealCard(result: FoodAnalysisResult, premium = false): str
   return text;
 }
 
-export function formatPendingMealSummary(meal: MealEntry, premium = false): string {
+export function formatPendingMealSummary(
+  meal: MealEntry,
+  premium = false,
+  locale: Locale = "en",
+): string {
   let text =
-    "📸 **Анализ готов**\n\n" +
-    `🍽 **Блюдо:** ${escapeMd(meal.dishName)}\n` +
-    `🔥 **Калории:** ${meal.calories} ккал\n` +
-    `🥩 **Белки:** ${meal.macros.proteinG} г\n` +
-    `🧈 **Жиры:** ${meal.macros.fatG} г\n` +
-    `🍞 **Углеводы:** ${meal.macros.carbsG} г`;
+    "📸 **Analysis ready**\n\n" +
+    `🍽 **${escapeMd(meal.dishName)}**\n` +
+    `🔥 **${meal.calories}** kcal\n` +
+    `🥩 **${meal.macros.proteinG}** g · 🧈 **${meal.macros.fatG}** g · 🍞 **${meal.macros.carbsG}** g`;
+
+  if (meal.grams) {
+    text += `\n⚖️ ${tSync(locale, "grams_label")}: **${meal.grams}** g`;
+  }
+  if (meal.confidence != null) {
+    text += `\n📊 ${tSync(locale, "confidence_label")}: **${Math.round(meal.confidence * 100)}%**`;
+  }
 
   if (premium && meal.micronutrients) {
     text += formatMicronutrients(meal.micronutrients);
@@ -112,7 +122,6 @@ export function formatPendingMealSummary(meal: MealEntry, premium = false): stri
     text += `\n\n💡 _${escapeMd(meal.advice)}_`;
   }
 
-  text += "\n\nДобавить это в статистику дня?";
   return text;
 }
 

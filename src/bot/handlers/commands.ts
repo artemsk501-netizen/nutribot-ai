@@ -1,17 +1,12 @@
 import type { Bot, Context } from "grammy";
 import { config } from "../../config.js";
+import { getUserLocale, t, tSync } from "../../i18n/index.js";
 import { hasPremiumFeature } from "../../services/premium.js";
 import { getStore } from "../../services/store.js";
-import type { GoalType, OnboardingStep, UserGoal } from "../../types/index.js";
+import type { GoalType, UserGoal } from "../../types/index.js";
 import { todayISO } from "../../utils/date.js";
 import { ensureUser } from "../helpers/user.js";
-import {
-  goalTypeKeyboard,
-  premiumKeyboard,
-  replyMenu,
-  statsKeyboard,
-  welcomeKeyboard,
-} from "../keyboards.js";
+import { goalTypeKeyboard, premiumKeyboard, replyMenu, statsKeyboard, welcomeKeyboard } from "../keyboards.js";
 import {
   formatDayStats,
   formatAdminMetrics,
@@ -22,15 +17,14 @@ import {
   formatWeekStats,
   goalLabel,
   GOAL_PROMPT,
-  HELP_TEXT,
-  PHOTO_PROMPT,
-  WELCOME_TEXT,
 } from "../messages.js";
 import { isAdmin } from "../middleware.js";
+import { handleNutritionText, handleUnsupportedFile } from "./aiChat.js";
+import { menuButtonTexts, promptLanguageIfNeeded, sendLanguageSettings } from "./language.js";
 import { handlePendingMealText, handlePhoto } from "./meal.js";
 import { formatProfile, restartOnboardingStep, startOrResumeOnboarding } from "./onboarding.js";
 import { formatPremiumMenu } from "./payments.js";
-import { handleNutritionText, handleUnsupportedFile } from "./aiChat.js";
+import { handleWaterText } from "./water.js";
 
 const DEFAULT_GOALS: Record<GoalType, UserGoal> = {
   lose: { type: "lose", dailyCalories: 1800 },
@@ -46,26 +40,33 @@ export function registerCommands(bot: Bot): void {
     if (user && referrerId) {
       const registered = await getStore().registerReferral(referrerId, user.telegramId);
       if (registered) {
-        await ctx.reply("🎁 Реферальное приглашение принято!");
+        await ctx.reply(await t(user.telegramId, "referral_accepted", undefined, ctx.from?.language_code));
       }
     }
     if (user) {
+      if (await promptLanguageIfNeeded(ctx)) return;
       await startOrResumeOnboarding(ctx, user);
       return;
     }
-    await ctx.reply(WELCOME_TEXT, { parse_mode: "Markdown", reply_markup: welcomeKeyboard() });
+    const locale = await getUserLocale(ctx.from!.id, ctx.from?.language_code);
+    await ctx.reply(tSync(locale, "welcome"), {
+      parse_mode: "Markdown",
+      reply_markup: welcomeKeyboard(locale),
+    });
   });
 
   bot.command("help", async (ctx) => {
     await ensureUser(ctx);
-    await ctx.reply(HELP_TEXT, { parse_mode: "Markdown" });
+    const locale = await getUserLocale(ctx.from!.id, ctx.from?.language_code);
+    await ctx.reply(tSync(locale, "help"), { parse_mode: "Markdown" });
   });
 
   bot.command("premium", async (ctx) => {
     await ensureUser(ctx);
+    const locale = await getUserLocale(ctx.from!.id, ctx.from?.language_code);
     await ctx.reply(formatPremiumMenu(), {
       parse_mode: "Markdown",
-      reply_markup: premiumKeyboard(),
+      reply_markup: premiumKeyboard(locale),
     });
   });
 
@@ -79,7 +80,8 @@ export function registerCommands(bot: Bot): void {
   bot.command("profile", async (ctx) => {
     const user = await ensureUser(ctx);
     if (!user) return;
-    await ctx.reply(formatProfile(user), { parse_mode: "Markdown", reply_markup: replyMenu });
+    const locale = await getUserLocale(user.telegramId, ctx.from?.language_code);
+    await ctx.reply(formatProfile(user), { parse_mode: "Markdown", reply_markup: replyMenu(locale) });
   });
 
   bot.command("editgoal", async (ctx) => {
@@ -96,7 +98,8 @@ export function registerCommands(bot: Bot): void {
 
   bot.command("photo", async (ctx) => {
     await ensureUser(ctx);
-    await ctx.reply(PHOTO_PROMPT, { parse_mode: "Markdown", reply_markup: replyMenu });
+    const locale = await getUserLocale(ctx.from!.id, ctx.from?.language_code);
+    await ctx.reply(tSync(locale, "photo_prompt"), { parse_mode: "Markdown", reply_markup: replyMenu(locale) });
   });
 
   bot.command("stats", async (ctx) => {
@@ -133,7 +136,8 @@ export function registerCommands(bot: Bot): void {
 
   bot.command("admin", async (ctx) => {
     if (!isAdmin(ctx)) {
-      await ctx.reply("⛔ Команда доступна только администратору.");
+      const locale = await getUserLocale(ctx.from!.id, ctx.from?.language_code);
+      await ctx.reply(tSync(locale, "admin_only"));
       return;
     }
 
@@ -157,20 +161,24 @@ export function registerCommands(bot: Bot): void {
       const saved = await getStore().setGoal(user.telegramId, parsed);
       await ctx.reply(
         `✅ **Цель обновлена**\n\n${formatGoalSummary(saved.goal!)}`,
-        { parse_mode: "Markdown", reply_markup: replyMenu },
+        {
+          parse_mode: "Markdown",
+          reply_markup: replyMenu(await getUserLocale(user.telegramId, ctx.from?.language_code)),
+        },
       );
       return;
     }
 
+    const locale = await getUserLocale(user.telegramId, ctx.from?.language_code);
     if (user.goal) {
       await ctx.reply(
         `📌 **Текущая цель**\n\n${formatGoalSummary(user.goal)}\n\nИзменить:`,
-        { parse_mode: "Markdown", reply_markup: goalTypeKeyboard() },
+        { parse_mode: "Markdown", reply_markup: goalTypeKeyboard(locale) },
       );
       return;
     }
 
-    await ctx.reply(GOAL_PROMPT, { parse_mode: "Markdown", reply_markup: goalTypeKeyboard() });
+    await ctx.reply(GOAL_PROMPT, { parse_mode: "Markdown", reply_markup: goalTypeKeyboard(locale) });
   });
 
   bot.command("target", async (ctx) => {
@@ -213,14 +221,16 @@ export function registerCommands(bot: Bot): void {
       `✅ **Цель установлена**\n\n${formatGoalSummary(saved.goal!)}`,
       { parse_mode: "Markdown" },
     );
-    await ctx.reply("Используйте меню ниже 👇", { reply_markup: replyMenu });
+    const locale = await getUserLocale(userId, ctx.from?.language_code);
+    await ctx.reply("👇", { reply_markup: replyMenu(locale) });
   });
 
   bot.callbackQuery("premium:show", async (ctx) => {
     await ctx.answerCallbackQuery();
+    const locale = await getUserLocale(ctx.from.id, ctx.from.language_code);
     await ctx.reply(formatPremiumMenu(), {
       parse_mode: "Markdown",
-      reply_markup: premiumKeyboard(),
+      reply_markup: premiumKeyboard(locale),
     });
   });
 
@@ -237,29 +247,38 @@ export function registerCommands(bot: Bot): void {
     handleUnsupportedFile,
   );
 
-  bot.hears("📷 Фото еды", async (ctx) => {
-    await ctx.reply(PHOTO_PROMPT, { parse_mode: "Markdown" });
+  bot.hears(menuButtonTexts("btn_photo"), async (ctx) => {
+    const locale = await getUserLocale(ctx.from!.id, ctx.from?.language_code);
+    await ctx.reply(tSync(locale, "photo_prompt"), { parse_mode: "Markdown" });
   });
 
-  bot.hears("📊 Статистика", async (ctx) => {
+  bot.hears(menuButtonTexts("btn_stats"), async (ctx) => {
     await ensureUser(ctx);
     await sendDayStats(ctx);
   });
 
-  bot.hears("📅 Неделя", async (ctx) => {
+  bot.hears(menuButtonTexts("btn_week"), async (ctx) => {
     await ensureUser(ctx);
     await sendWeekStats(ctx);
   });
 
-  bot.hears("🎯 Цель", async (ctx) => {
-    await ctx.reply(GOAL_PROMPT, { parse_mode: "Markdown", reply_markup: goalTypeKeyboard() });
+  bot.hears(menuButtonTexts("btn_goal"), async (ctx) => {
+    const locale = await getUserLocale(ctx.from!.id, ctx.from?.language_code);
+    await ctx.reply(GOAL_PROMPT, { parse_mode: "Markdown", reply_markup: goalTypeKeyboard(locale) });
   });
 
-  bot.hears("❓ Помощь", async (ctx) => {
-    await ctx.reply(HELP_TEXT, { parse_mode: "Markdown" });
+  bot.hears(menuButtonTexts("btn_help"), async (ctx) => {
+    const locale = await getUserLocale(ctx.from!.id, ctx.from?.language_code);
+    await ctx.reply(tSync(locale, "help"), { parse_mode: "Markdown" });
+  });
+
+  bot.hears(menuButtonTexts("btn_language"), async (ctx) => {
+    await ensureUser(ctx);
+    await sendLanguageSettings(ctx);
   });
 
   bot.on("message:text", async (ctx) => {
+    if (await handleWaterText(ctx)) return;
     if (await handlePendingMealText(ctx)) return;
     await handleNutritionText(ctx);
   });
@@ -334,23 +353,25 @@ function parseGoalCommand(text: string, current?: UserGoal): UserGoal | null {
 }
 
 export const BOT_COMMANDS = [
-  { command: "start", description: "Начать / приветствие" },
-  { command: "photo", description: "Отправить фото еды" },
-  { command: "stats", description: "Статистика за день" },
-  { command: "week", description: "Отчёт за неделю" },
-  { command: "month", description: "Отчёт за месяц" },
-  { command: "goal", description: "Цель и калории" },
-  { command: "weight", description: "Записать / история веса" },
-  { command: "target", description: "Целевой вес (кг)" },
-  { command: "notify", description: "Еженедельные отчёты" },
-  { command: "premium", description: "Premium через Stars" },
-  { command: "referral", description: "Реферальная ссылка" },
-  { command: "profile", description: "Профиль и нормы" },
-  { command: "editgoal", description: "Изменить цель" },
-  { command: "editweight", description: "Изменить вес" },
-  { command: "editactivity", description: "Изменить активность" },
-  { command: "admin", description: "Админ-статистика" },
-  { command: "help", description: "Справка" },
+  { command: "start", description: "Start / welcome" },
+  { command: "photo", description: "Send food photo" },
+  { command: "stats", description: "Daily stats" },
+  { command: "week", description: "Weekly report" },
+  { command: "month", description: "Monthly report" },
+  { command: "goal", description: "Calorie goal" },
+  { command: "weight", description: "Log weight" },
+  { command: "target", description: "Target weight" },
+  { command: "water", description: "Water reminders" },
+  { command: "waterstats", description: "Water stats" },
+  { command: "notify", description: "Notifications" },
+  { command: "premium", description: "Premium Stars" },
+  { command: "referral", description: "Referral link" },
+  { command: "profile", description: "Profile" },
+  { command: "editgoal", description: "Edit goal" },
+  { command: "editweight", description: "Edit weight" },
+  { command: "editactivity", description: "Edit activity" },
+  { command: "admin", description: "Admin metrics" },
+  { command: "help", description: "Help" },
 ];
 
 function parseReferralPayload(payload?: string): number | null {

@@ -3,6 +3,7 @@ import { answerNutritionQuestion } from "../../services/aiAssistant.js";
 import { getStore } from "../../services/store.js";
 import { formatUsageCounter, LIMIT_REACHED_MESSAGE } from "../../services/usageLimits.js";
 import { todayISO, shiftDate } from "../../utils/date.js";
+import { getUserLocale, tSync } from "../../i18n/index.js";
 import { upgradeKeyboard } from "../keyboards.js";
 import { ensureUser } from "../helpers/user.js";
 
@@ -16,7 +17,11 @@ export async function handleNutritionText(ctx: Context): Promise<void> {
   const date = todayISO();
   const usage = await store.getUsageStatus(userId, "ai_message", date);
   if (!usage.allowed) {
-    await ctx.reply(LIMIT_REACHED_MESSAGE, { parse_mode: "Markdown", reply_markup: upgradeKeyboard() });
+    const locale = await getUserLocale(userId, ctx.from?.language_code);
+    await ctx.reply(tSync(locale, "limit_reached"), {
+      parse_mode: "Markdown",
+      reply_markup: upgradeKeyboard(locale),
+    });
     return;
   }
 

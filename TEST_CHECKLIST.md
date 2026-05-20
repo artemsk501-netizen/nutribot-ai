@@ -18,9 +18,13 @@ curl http://localhost:3000/api/health
 
 Telegram smoke test:
 
+- `/start` asks language (🇷🇺 / 🇬🇧 / 🇮🇹) on first run; `🌐 Language` button switches locale.
 - `/start` starts onboarding or resumes an incomplete profile.
 - `/profile` shows saved profile or asks to complete onboarding.
-- Send a food photo as a free user: bot analyzes it and shows `✅ Добавить / ✏️ Изменить / ❌ Не добавлять`.
+- Send a food photo: bot shows analysis with confidence, then portion buttons (small / medium / large / grams / edit / discard).
+- After portion choice, bot asks `Add to daily stats?` with `✅ Add / ✏️ Edit / ❌ Do not add` (localized).
+- Custom grams: enter 1–3000; calories/macros recalculate from per-100g values.
+- Edit flow: name → calories → protein → fat → carbs → grams; then confirm again.
 - Before pressing `✅ Добавить`, run `/stats`: the analyzed meal is not counted yet.
 - Press `✅ Добавить`: meal is saved and `/stats` shows its calories and BJU.
 - Send another food photo and press `❌ Не добавлять`: `/stats` does not change.
@@ -35,5 +39,8 @@ Telegram smoke test:
 - Restart the bot and run `/stats` again: saved meals and totals remain.
 - Buy Premium via `/premium` in a Telegram Stars test/live flow.
 - Premium user can send more than 3 photos and 3 AI questions without being blocked.
+- `/water` and `/waterstats`: enable/disable reminders, log 150/250/500/custom ml, set goal/interval/quiet hours.
+- Water reminder job: no spam during quiet hours (22:00–09:00 default), max 5/day, pauses after 3 days inactivity.
 - `/goal`, `/weight`, `/target`, `/notify`, `/help` respond without crashes.
+- Premium plans: only Basic (100⭐), Pro (300⭐), Ultra (700⭐); no test/1-star plan.
 - Admin user from `ADMIN_IDS` can run `/admin`; non-admin user is blocked.

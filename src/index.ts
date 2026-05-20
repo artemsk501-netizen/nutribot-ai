@@ -8,6 +8,7 @@ import { initStore } from "./services/store.js";
 import { captureError, initObservability } from "./services/observability.js";
 import { startWeeklyReportJob } from "./jobs/weeklyReport.js";
 import { startNotificationJobs } from "./jobs/notifications.js";
+import { startWaterReminderJob } from "./jobs/waterReminders.js";
 
 async function main(): Promise<void> {
   initObservability();
@@ -75,6 +76,7 @@ async function main(): Promise<void> {
   const server = await startServer(app);
   startWeeklyReportJob(bot);
   startNotificationJobs(bot);
+  startWaterReminderJob(bot);
 
   let shuttingDown = false;
   const shutdown = async (signal: NodeJS.Signals) => {

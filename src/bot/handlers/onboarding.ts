@@ -8,6 +8,7 @@ import {
 } from "../../services/nutritionGoals.js";
 import { getStore } from "../../services/store.js";
 import type { ActivityLevel, GoalType, OnboardingStep, UserProfile } from "../../types/index.js";
+import { getUserLocale, tSync } from "../../i18n/index.js";
 import { activityKeyboard, onboardingGoalKeyboard, replyMenu } from "../keyboards.js";
 import { formatGoalSummary } from "../messages.js";
 
@@ -78,11 +79,12 @@ export function registerOnboarding(bot: Bot): void {
 }
 
 export async function startOrResumeOnboarding(ctx: Context, user: UserProfile): Promise<void> {
+  const locale = await getUserLocale(user.telegramId, ctx.from?.language_code);
   if (isNutritionProfileComplete(user)) {
-    await ctx.reply(
-      "👋 Вы уже настроили профиль.\n\nОтправьте фото еды для анализа или используйте /profile.",
-      { parse_mode: "Markdown", reply_markup: replyMenu },
-    );
+    await ctx.reply(tSync(locale, "welcome_back"), {
+      parse_mode: "Markdown",
+      reply_markup: replyMenu(locale),
+    });
     return;
   }
 
@@ -175,9 +177,10 @@ async function handleOnboardingText(ctx: Context, user: UserProfile, text: strin
       return;
     }
     await getStore().upsertUser({ telegramId: user.telegramId, age: Math.round(age), onboardingStep: "activity" });
-    await ctx.reply("🏃 Выберите ваш уровень активности:", {
+    const locale = await getUserLocale(user.telegramId, ctx.from?.language_code);
+    await ctx.reply(tSync(locale, "onboarding_activity"), {
       parse_mode: "Markdown",
-      reply_markup: activityKeyboard(),
+      reply_markup: activityKeyboard(locale),
     });
   }
 }
@@ -213,24 +216,22 @@ async function finishOnboarding(ctx: Context, userId: number): Promise<void> {
     onboardingStep: "complete",
   });
 
-  await ctx.reply(formatOnboardingSummary(saved), {
+  const locale = await getUserLocale(userId, ctx.from?.language_code);
+  await ctx.reply(formatOnboardingSummary(saved, locale), {
     parse_mode: "Markdown",
-    reply_markup: replyMenu,
+    reply_markup: replyMenu(locale),
   });
 }
 
-function formatOnboardingSummary(user: UserProfile): string {
+function formatOnboardingSummary(user: UserProfile, locale: import("../../types/index.js").Locale): string {
   const goalType = user.goal?.type ?? "maintain";
-  return (
-    `✅ **Профиль настроен**\n\n` +
-    `🔥 Ваша цель: **${GOAL_LABEL[goalType]}**\n\n` +
-    `📊 **Рекомендуемая норма:**\n` +
-    `• **${user.goal?.dailyCalories ?? "-"}** ккал\n` +
-    `• Белки: **${user.proteinGoalG ?? "-"}** г\n` +
-    `• Жиры: **${user.fatGoalG ?? "-"}** г\n` +
-    `• Углеводы: **${user.carbsGoalG ?? "-"}** г\n\n` +
-    `🎯 Теперь отправьте фото еды для анализа.`
-  );
+  return tSync(locale, "onboarding_complete", {
+    goal: tSync(locale, goalType === "lose" ? "goal_lose" : goalType === "gain" ? "goal_gain" : "goal_maintain"),
+    kcal: user.goal?.dailyCalories ?? "-",
+    p: user.proteinGoalG ?? "-",
+    f: user.fatGoalG ?? "-",
+    c: user.carbsGoalG ?? "-",
+  });
 }
 
 async function sendPromptForStep(ctx: Context, step: OnboardingStep): Promise<void> {
@@ -246,9 +247,10 @@ async function sendPromptForStep(ctx: Context, step: OnboardingStep): Promise<vo
   } else if (step === "age") {
     await ctx.reply("🎂 Введите ваш возраст", { parse_mode: "Markdown" });
   } else if (step === "activity") {
-    await ctx.reply("🏃 Выберите ваш уровень активности:", {
+    const locale = await getUserLocale(ctx.from!.id, ctx.from?.language_code);
+    await ctx.reply(tSync(locale, "onboarding_activity"), {
       parse_mode: "Markdown",
-      reply_markup: activityKeyboard(),
+      reply_markup: activityKeyboard(locale),
     });
   }
 }
@@ -264,8 +266,9 @@ function nextMissingStep(user: UserProfile): OnboardingStep {
 }
 
 async function askGoal(ctx: Context, edit = false): Promise<void> {
-  const text = "🎯 **Какая у вас цель?**";
-  const options = { parse_mode: "Markdown" as const, reply_markup: onboardingGoalKeyboard() };
+  const locale = await getUserLocale(ctx.from!.id, ctx.from?.language_code);
+  const text = tSync(locale, "onboarding_goal");
+  const options = { parse_mode: "Markdown" as const, reply_markup: onboardingGoalKeyboard(locale) };
   if (edit && ctx.callbackQuery?.message) {
     await ctx.editMessageText(text, options);
     return;

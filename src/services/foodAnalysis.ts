@@ -22,6 +22,12 @@ const analysisSchema = z.object({
   searchQueryEn: z.string().optional(),
   calories: z.coerce.number().positive(),
   macros: macrosSchema,
+  estimatedGrams: z.coerce.number().positive().optional(),
+  confidence: z.coerce.number().min(0).max(1).optional(),
+  caloriesPer100g: z.coerce.number().positive().optional(),
+  proteinPer100g: z.coerce.number().nonnegative().optional(),
+  fatPer100g: z.coerce.number().nonnegative().optional(),
+  carbsPer100g: z.coerce.number().nonnegative().optional(),
   advice: z.string().min(1),
   micronutrients: z
     .object({
@@ -73,10 +79,17 @@ ${options.aiRecommendations ? "Дай более прикладную реком
 ${options.personalNutritionist ? "Действуй как персональный AI-нутрициолог: учитывай цель, баланс дня и предложи конкретный следующий шаг." : ""}
 ${options.mealPlans ? "Если уместно, добавь короткую идею следующего приёма пищи или коррекцию плана на день." : ""}
 
+Оцени порцию как medium (~250g), но верни значения на 100 г и estimatedGrams.
 Ответь строго одним JSON-объектом без markdown:
 {
   "dishName": "название на русском",
   "searchQueryEn": "english dish name for nutrition database",
+  "estimatedGrams": number,
+  "confidence": number,
+  "caloriesPer100g": number,
+  "proteinPer100g": number,
+  "fatPer100g": number,
+  "carbsPer100g": number,
   "calories": number,
   "macros": {"proteinG": number, "fatG": number, "carbsG": number},
   "advice": "короткий персональный совет 1-2 предложения"
@@ -98,6 +111,12 @@ function mockAnalysis(hint?: string, premium = false): FoodAnalysisResult {
     searchQueryEn: name,
     calories: 350,
     macros: { proteinG: 12, fatG: 10, carbsG: 45 },
+    estimatedGrams: 250,
+    confidence: 0.6,
+    caloriesPer100g: 140,
+    proteinPer100g: 4.8,
+    fatPer100g: 4,
+    carbsPer100g: 18,
     advice:
       "⚠️ Демо-режим: задайте OPENAI_API_KEY в .env для реального AI-анализа. " +
       "Совет: сбалансируйте белок в следующих приёмах пищи.",
@@ -136,6 +155,12 @@ function parseAiJson(content: string): FoodAnalysisResult {
       advice: parsed.advice.trim(),
       micronutrients: parsed.micronutrients,
       caloriesSource: "ai",
+      estimatedGrams: parsed.estimatedGrams,
+      confidence: parsed.confidence,
+      caloriesPer100g: parsed.caloriesPer100g,
+      proteinPer100g: parsed.proteinPer100g,
+      fatPer100g: parsed.fatPer100g,
+      carbsPer100g: parsed.carbsPer100g,
     };
   } catch (err) {
     throw new FoodAnalysisError("Не удалось разобрать ответ AI", "PARSE_ERROR", err);

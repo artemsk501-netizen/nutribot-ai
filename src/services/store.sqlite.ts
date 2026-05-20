@@ -1,6 +1,22 @@
 import type { DatabaseSync } from "node:sqlite";
 import { randomUUID } from "node:crypto";
-import type { AdminMetrics, DayStats, MealEntry, MonthStats, PaymentRecord, ReferralStats, UsageKind, UsageStatus, UserGoal, UserProfile, WeightEntry, WeightHistory } from "../types/index.js";
+import type {
+  AdminMetrics,
+  DayStats,
+  MealEntry,
+  MonthStats,
+  PaymentRecord,
+  ReferralStats,
+  UsageKind,
+  UsageStatus,
+  UserGoal,
+  UserProfile,
+  WaterDayStats,
+  WaterLogEntry,
+  WaterSettings,
+  WeightEntry,
+  WeightHistory,
+} from "../types/index.js";
 import { getFreeLimit, getSubscriptionPlan } from "./usageLimits.js";
 import { shiftDate, todayISO } from "../utils/date.js";
 import type { Store } from "./store.interface.js";
@@ -36,15 +52,16 @@ export class SqliteStore implements Store {
     this.db
       .prepare(
         `INSERT INTO users (
-           telegram_id, first_name, language_code, referred_by, goal_type, current_weight_kg,
+           telegram_id, first_name, language_code, locale, referred_by, goal_type, current_weight_kg,
            target_weight_kg, height_cm, age, activity_level, daily_calories,
            protein_goal_g, fat_goal_g, carbs_goal_g, onboarding_step,
            onboarding_complete, subscription_plan, premium, premium_plan, premium_expires_at,
            weekly_reports_enabled, last_weekly_report_at, daily_reminders_enabled, last_daily_reminder_at
-         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT (telegram_id) DO UPDATE SET
            first_name = COALESCE(excluded.first_name, users.first_name),
            language_code = COALESCE(excluded.language_code, users.language_code),
+           locale = COALESCE(excluded.locale, users.locale),
            referred_by = COALESCE(excluded.referred_by, users.referred_by),
            goal_type = COALESCE(excluded.goal_type, users.goal_type),
            current_weight_kg = COALESCE(excluded.current_weight_kg, users.current_weight_kg),
@@ -71,6 +88,7 @@ export class SqliteStore implements Store {
         profile.telegramId,
         profile.firstName ?? existing?.firstName ?? null,
         profile.languageCode ?? existing?.languageCode ?? null,
+        profile.locale ?? existing?.locale ?? null,
         profile.referredBy ?? existing?.referredBy ?? null,
         profile.goal?.type ?? existing?.goal?.type ?? null,
         profile.currentWeightKg ?? existing?.currentWeightKg ?? null,
@@ -114,8 +132,10 @@ export class SqliteStore implements Store {
         .prepare(
           `INSERT INTO meals (
              id, user_id, dish_name, calories, protein_g, fat_g, carbs_g,
-             advice, photo_file_id, usda_fdc_id, calories_source, micronutrients, created_at
-           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+             advice, photo_file_id, usda_fdc_id, calories_source, micronutrients,
+             grams, portion_size, confidence, calories_per_100g, protein_per_100g,
+             fat_per_100g, carbs_per_100g, source, created_at
+           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
         .run(
           meal.id,
@@ -130,6 +150,14 @@ export class SqliteStore implements Store {
           meal.usdaFdcId ?? null,
           meal.caloriesSource ?? "ai",
           meal.micronutrients ? JSON.stringify(meal.micronutrients) : null,
+          meal.grams ?? null,
+          meal.portionSize ?? null,
+          meal.confidence ?? null,
+          meal.caloriesPer100g ?? null,
+          meal.proteinPer100g ?? null,
+          meal.fatPer100g ?? null,
+          meal.carbsPer100g ?? null,
+          meal.source ?? "ai",
           meal.createdAt,
         );
 
@@ -405,6 +433,108 @@ export class SqliteStore implements Store {
     return this.getUsageStatus(userId, kind, date);
   }
 
+  async setWaterSettings(userId: number, settings: Partial<WaterSettings>): Promise<UserProfile> {
+    const user = await this.getUser(userId);
+    const w = { ...user?.water, ...settings };
+    this.db
+      .prepare(
+        `UPDATE users SET
+           water_reminders_enabled = ?,
+           water_goal_ml = ?,
+           water_interval_hours = ?,
+           water_quiet_start = ?,
+           water_quiet_end = ?,
+           water_last_reminder_at = ?,
+           water_reminders_today = ?,
+           water_reminders_date = ?,
+           water_last_activity_at = ?
+         WHERE telegram_id = ?`,
+      )
+      .run(
+        w.remindersEnabled ? 1 : 0,
+        w.goalMl ?? 2000,
+        w.intervalHours ?? 3,
+        w.quietStart ?? "22:00",
+        w.quietEnd ?? "09:00",
+        w.lastReminderAt ?? null,
+        w.remindersToday ?? 0,
+        w.remindersDate ?? null,
+        w.lastActivityAt ?? null,
+        userId,
+      );
+    return (await this.getUser(userId))!;
+  }
+
+  async addWaterLog(entry: WaterLogEntry): Promise<void> {
+    this.db
+      .prepare("INSERT INTO water_logs (id, user_id, amount_ml, created_at) VALUES (?, ?, ?, ?)")
+      .run(entry.id, entry.userId, entry.amountMl, entry.createdAt);
+  }
+
+  async getWaterDayStats(userId: number, date: string): Promise<WaterDayStats> {
+    const row = this.db
+      .prepare(
+        `SELECT COALESCE(SUM(amount_ml), 0) AS total, COUNT(*) AS cnt
+         FROM water_logs
+         WHERE user_id = ? AND substr(created_at, 1, 10) = ?`,
+      )
+      .get(userId, date) as { total: number; cnt: number };
+    const user = await this.getUser(userId);
+    const goalMl = user?.water?.goalMl ?? 2000;
+    return {
+      date,
+      totalMl: Number(row.total),
+      goalMl,
+      logCount: Number(row.cnt),
+    };
+  }
+
+  async getUsersDueWaterReminder(nowIso: string): Promise<number[]> {
+    const date = nowIso.slice(0, 10);
+    const rows = this.db
+      .prepare(
+        `SELECT telegram_id, water_goal_ml, water_interval_hours, water_quiet_start, water_quiet_end,
+                water_last_reminder_at, water_reminders_today, water_reminders_date, water_last_activity_at
+         FROM users
+         WHERE water_reminders_enabled = 1 AND onboarding_complete = 1`,
+      )
+      .all() as Array<Record<string, unknown>>;
+
+    const due: number[] = [];
+    for (const row of rows) {
+      const userId = Number(row.telegram_id);
+      const settings: WaterSettings = {
+        remindersEnabled: true,
+        goalMl: Number(row.water_goal_ml ?? 2000),
+        intervalHours: Number(row.water_interval_hours ?? 3),
+        quietStart: String(row.water_quiet_start ?? "22:00"),
+        quietEnd: String(row.water_quiet_end ?? "09:00"),
+        lastReminderAt: row.water_last_reminder_at ? String(row.water_last_reminder_at) : undefined,
+        remindersToday: Number(row.water_reminders_today ?? 0),
+        remindersDate: row.water_reminders_date ? String(row.water_reminders_date) : undefined,
+        lastActivityAt: row.water_last_activity_at ? String(row.water_last_activity_at) : undefined,
+      };
+      if (isDueWaterReminder(settings, nowIso, date)) due.push(userId);
+    }
+    return due;
+  }
+
+  async markWaterReminderSent(userId: number, nowIso: string): Promise<void> {
+    const date = nowIso.slice(0, 10);
+    const user = await this.getUser(userId);
+    const todayCount =
+      user?.water?.remindersDate === date ? (user.water?.remindersToday ?? 0) + 1 : 1;
+    await this.setWaterSettings(userId, {
+      lastReminderAt: nowIso,
+      remindersToday: todayCount,
+      remindersDate: date,
+    });
+  }
+
+  async touchWaterActivity(userId: number, nowIso: string): Promise<void> {
+    await this.setWaterSettings(userId, { lastActivityAt: nowIso });
+  }
+
   private resetUsageIfNeeded(userId: number, date: string): void {
     this.db
       .prepare(
@@ -422,6 +552,30 @@ export class SqliteStore implements Store {
 function usageCount(user: UserProfile, kind: UsageKind, date: string): number {
   if (user.lastUsageDate !== date) return 0;
   return kind === "photo_scan" ? user.scansToday : user.aiMessagesToday;
+}
+
+function isDueWaterReminder(settings: WaterSettings, nowIso: string, date: string): boolean {
+  const { isInQuietHours, hoursSince, daysSinceActivity } = waterTimeHelpers(settings, nowIso);
+  if (isInQuietHours) return false;
+  if (settings.remindersDate === date && (settings.remindersToday ?? 0) >= 5) return false;
+  if (settings.lastActivityAt && daysSinceActivity(settings.lastActivityAt, nowIso) > 3) return false;
+  if (!settings.lastReminderAt) return true;
+  return hoursSince(settings.lastReminderAt, nowIso) >= settings.intervalHours;
+}
+
+function waterTimeHelpers(settings: WaterSettings, nowIso: string) {
+  const now = new Date(nowIso);
+  const mins = now.getUTCHours() * 60 + now.getUTCMinutes();
+  const [qsH, qsM] = settings.quietStart.split(":").map(Number);
+  const [qeH, qeM] = settings.quietEnd.split(":").map(Number);
+  const start = qsH * 60 + qsM;
+  const end = qeH * 60 + qeM;
+  const isInQuietHours = start <= end ? mins >= start && mins < end : mins >= start || mins < end;
+  const hoursSince = (iso: string, nowStr: string) =>
+    (new Date(nowStr).getTime() - new Date(iso).getTime()) / (3600 * 1000);
+  const daysSinceActivity = (iso: string, nowStr: string) =>
+    (new Date(nowStr).getTime() - new Date(iso).getTime()) / (86400 * 1000);
+  return { isInQuietHours, hoursSince, daysSinceActivity };
 }
 
 function usageStatus(kind: UsageKind, plan: "free" | "premium", used: number): UsageStatus {

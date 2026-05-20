@@ -1,8 +1,15 @@
+export type Locale = "ru" | "en" | "it";
+
 export type GoalType = "lose" | "gain" | "maintain";
+
+export type PortionSize = "small" | "medium" | "large" | "custom";
+
+export type MealSource = "ai" | "user_corrected";
 
 export type ActivityLevel = "low" | "medium" | "high";
 
 export type OnboardingStep =
+  | "language"
   | "goal"
   | "current_weight"
   | "target_weight"
@@ -64,13 +71,48 @@ export interface MealEntry {
   usdaFdcId?: number;
   caloriesSource?: CaloriesSource;
   micronutrients?: Micronutrients;
+  grams?: number;
+  portionSize?: PortionSize;
+  confidence?: number;
+  caloriesPer100g?: number;
+  proteinPer100g?: number;
+  fatPer100g?: number;
+  carbsPer100g?: number;
+  source?: MealSource;
   createdAt: string;
+}
+
+export interface WaterSettings {
+  remindersEnabled: boolean;
+  goalMl: number;
+  intervalHours: number;
+  quietStart: string;
+  quietEnd: string;
+  lastReminderAt?: string;
+  remindersToday: number;
+  remindersDate?: string;
+  lastActivityAt?: string;
+}
+
+export interface WaterLogEntry {
+  id: string;
+  userId: number;
+  amountMl: number;
+  createdAt: string;
+}
+
+export interface WaterDayStats {
+  date: string;
+  totalMl: number;
+  goalMl: number;
+  logCount: number;
 }
 
 export interface UserProfile {
   telegramId: number;
   firstName?: string;
   languageCode?: string;
+  locale?: Locale;
   referredBy?: number;
   goal?: UserGoal;
   currentWeightKg?: number;
@@ -94,6 +136,7 @@ export interface UserProfile {
   scansToday: number;
   aiMessagesToday: number;
   lastUsageDate?: string;
+  water?: WaterSettings;
   createdAt: string;
 }
 
@@ -140,6 +183,12 @@ export interface FoodAnalysisResult {
   usdaFdcId?: number;
   caloriesSource?: CaloriesSource;
   micronutrients?: Micronutrients;
+  estimatedGrams?: number;
+  confidence?: number;
+  caloriesPer100g?: number;
+  proteinPer100g?: number;
+  fatPer100g?: number;
+  carbsPer100g?: number;
 }
 
 export interface DayStats {

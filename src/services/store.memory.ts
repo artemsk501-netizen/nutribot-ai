@@ -1,4 +1,20 @@
-import type { AdminMetrics, DayStats, MealEntry, MonthStats, PaymentRecord, ReferralStats, UsageKind, UsageStatus, UserGoal, UserProfile, WeightEntry, WeightHistory } from "../types/index.js";
+import type {
+  AdminMetrics,
+  DayStats,
+  MealEntry,
+  MonthStats,
+  PaymentRecord,
+  ReferralStats,
+  UsageKind,
+  UsageStatus,
+  UserGoal,
+  UserProfile,
+  WaterDayStats,
+  WaterLogEntry,
+  WaterSettings,
+  WeightEntry,
+  WeightHistory,
+} from "../types/index.js";
 import type { Store } from "./store.interface.js";
 import { applyPremiumStatus, isPremiumActive } from "./premium.js";
 import { buildDayStats, buildWeekStats } from "./statsUtils.js";
@@ -10,6 +26,7 @@ export class MemoryStore implements Store {
   private weights = new Map<number, WeightEntry[]>();
   private payments: PaymentRecord[] = [];
   private referrals = new Map<number, number>();
+  private waterLogs = new Map<number, WaterLogEntry[]>();
 
   async getUser(telegramId: number): Promise<UserProfile | undefined> {
     const user = this.users.get(telegramId);
@@ -22,6 +39,7 @@ export class MemoryStore implements Store {
       telegramId: profile.telegramId,
       firstName: profile.firstName ?? existing?.firstName,
       languageCode: profile.languageCode ?? existing?.languageCode,
+      locale: profile.locale ?? existing?.locale,
       referredBy: profile.referredBy ?? existing?.referredBy,
       goal: profile.goal ?? existing?.goal,
       currentWeightKg: profile.currentWeightKg ?? existing?.currentWeightKg,
@@ -47,6 +65,17 @@ export class MemoryStore implements Store {
       scansToday: profile.scansToday ?? existing?.scansToday ?? 0,
       aiMessagesToday: profile.aiMessagesToday ?? existing?.aiMessagesToday ?? 0,
       lastUsageDate: profile.lastUsageDate ?? existing?.lastUsageDate,
+      water: {
+        remindersEnabled: profile.water?.remindersEnabled ?? existing?.water?.remindersEnabled ?? false,
+        goalMl: profile.water?.goalMl ?? existing?.water?.goalMl ?? 2000,
+        intervalHours: profile.water?.intervalHours ?? existing?.water?.intervalHours ?? 3,
+        quietStart: profile.water?.quietStart ?? existing?.water?.quietStart ?? "22:00",
+        quietEnd: profile.water?.quietEnd ?? existing?.water?.quietEnd ?? "09:00",
+        lastReminderAt: profile.water?.lastReminderAt ?? existing?.water?.lastReminderAt,
+        remindersToday: profile.water?.remindersToday ?? existing?.water?.remindersToday ?? 0,
+        remindersDate: profile.water?.remindersDate ?? existing?.water?.remindersDate,
+        lastActivityAt: profile.water?.lastActivityAt ?? existing?.water?.lastActivityAt,
+      },
       createdAt: existing?.createdAt ?? new Date().toISOString(),
     });
     this.users.set(profile.telegramId, user);
@@ -234,6 +263,71 @@ export class MemoryStore implements Store {
       lastUsageDate: date,
     });
     return this.getUsageStatus(userId, kind, date);
+  }
+
+  async setWaterSettings(userId: number, settings: Partial<WaterSettings>): Promise<UserProfile> {
+    const user = await this.getUser(userId);
+    const base: WaterSettings = user?.water ?? {
+      remindersEnabled: false,
+      goalMl: 2000,
+      intervalHours: 3,
+      quietStart: "22:00",
+      quietEnd: "09:00",
+      remindersToday: 0,
+    };
+    return this.upsertUser({
+      telegramId: userId,
+      water: { ...base, ...settings },
+    });
+  }
+
+  async addWaterLog(entry: WaterLogEntry): Promise<void> {
+    const list = this.waterLogs.get(entry.userId) ?? [];
+    list.push(entry);
+    this.waterLogs.set(entry.userId, list);
+  }
+
+  async getWaterDayStats(userId: number, date: string): Promise<WaterDayStats> {
+    const logs = (this.waterLogs.get(userId) ?? []).filter((l) => l.createdAt.startsWith(date));
+    const user = await this.getUser(userId);
+    const totalMl = logs.reduce((s, l) => s + l.amountMl, 0);
+    return { date, totalMl, goalMl: user?.water?.goalMl ?? 2000, logCount: logs.length };
+  }
+
+  async getUsersDueWaterReminder(nowIso: string): Promise<number[]> {
+    const date = nowIso.slice(0, 10);
+    const due: number[] = [];
+    for (const user of this.users.values()) {
+      if (!user.onboardingComplete || !user.water?.remindersEnabled) continue;
+      const w = user.water;
+      if (w.remindersDate === date && (w.remindersToday ?? 0) >= 5) continue;
+      if (w.lastActivityAt) {
+        const inactiveDays = (Date.now() - new Date(w.lastActivityAt).getTime()) / 86400000;
+        if (inactiveDays > 3) continue;
+      }
+      if (!w.lastReminderAt) {
+        due.push(user.telegramId);
+        continue;
+      }
+      const hours = (Date.now() - new Date(w.lastReminderAt).getTime()) / 3600000;
+      if (hours >= w.intervalHours) due.push(user.telegramId);
+    }
+    return due;
+  }
+
+  async markWaterReminderSent(userId: number, nowIso: string): Promise<void> {
+    const date = nowIso.slice(0, 10);
+    const user = await this.getUser(userId);
+    const today = user?.water?.remindersDate === date ? (user.water?.remindersToday ?? 0) + 1 : 1;
+    await this.setWaterSettings(userId, {
+      lastReminderAt: nowIso,
+      remindersToday: today,
+      remindersDate: date,
+    });
+  }
+
+  async touchWaterActivity(userId: number, nowIso: string): Promise<void> {
+    await this.setWaterSettings(userId, { lastActivityAt: nowIso });
   }
 }
 

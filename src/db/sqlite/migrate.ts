@@ -30,6 +30,55 @@ export async function runSqliteMigrations(): Promise<void> {
   }
 
   ensurePremiumColumns(database);
+  ensureLocaleMealsWaterColumns(database);
+}
+
+function ensureLocaleMealsWaterColumns(database: ReturnType<typeof initSqlite>): void {
+  const userCols = database.prepare("PRAGMA table_info(users)").all() as Array<{ name: string }>;
+  const userNames = new Set(userCols.map((c) => c.name));
+
+  const userAdds: Array<[string, string]> = [
+    ["locale", "TEXT CHECK (locale IN ('ru', 'en', 'it'))"],
+    ["water_reminders_enabled", "INTEGER NOT NULL DEFAULT 0"],
+    ["water_goal_ml", "INTEGER NOT NULL DEFAULT 2000"],
+    ["water_interval_hours", "INTEGER NOT NULL DEFAULT 3"],
+    ["water_quiet_start", "TEXT NOT NULL DEFAULT '22:00'"],
+    ["water_quiet_end", "TEXT NOT NULL DEFAULT '09:00'"],
+    ["water_last_reminder_at", "TEXT"],
+    ["water_reminders_today", "INTEGER NOT NULL DEFAULT 0"],
+    ["water_reminders_date", "TEXT"],
+    ["water_last_activity_at", "TEXT"],
+  ];
+  for (const [name, def] of userAdds) {
+    if (!userNames.has(name)) database.exec(`ALTER TABLE users ADD COLUMN ${name} ${def}`);
+  }
+
+  const mealCols = database.prepare("PRAGMA table_info(meals)").all() as Array<{ name: string }>;
+  const mealNames = new Set(mealCols.map((c) => c.name));
+  const mealAdds: Array<[string, string]> = [
+    ["grams", "REAL"],
+    ["portion_size", "TEXT"],
+    ["confidence", "REAL"],
+    ["calories_per_100g", "REAL"],
+    ["protein_per_100g", "REAL"],
+    ["fat_per_100g", "REAL"],
+    ["carbs_per_100g", "REAL"],
+    ["source", "TEXT NOT NULL DEFAULT 'ai'"],
+  ];
+  for (const [name, def] of mealAdds) {
+    if (!mealNames.has(name)) database.exec(`ALTER TABLE meals ADD COLUMN ${name} ${def}`);
+  }
+
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS water_logs (
+      id TEXT PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users (telegram_id) ON DELETE CASCADE,
+      amount_ml INTEGER NOT NULL CHECK (amount_ml > 0 AND amount_ml <= 5000),
+      created_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_water_logs_user_created ON water_logs (user_id, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_water_logs_user_date ON water_logs (user_id, substr(created_at, 1, 10));
+  `);
 }
 
 function ensurePremiumColumns(database: ReturnType<typeof initSqlite>): void {
