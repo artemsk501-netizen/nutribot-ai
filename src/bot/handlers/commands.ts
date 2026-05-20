@@ -33,6 +33,10 @@ const DEFAULT_GOALS: Record<GoalType, UserGoal> = {
 };
 
 export function registerCommands(bot: Bot): void {
+  bot.command("appss_verify", async (ctx) => {
+    await ctx.reply("appss_2c33cd");
+  });
+
   bot.command("start", async (ctx) => {
     const user = await ensureUser(ctx);
     const payload = ctx.message?.text?.replace(/^\/start\s*/i, "").trim();
